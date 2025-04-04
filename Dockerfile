@@ -2,18 +2,25 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependencias
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requirements.txt primero para aprovechar el caché de capas
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código de la aplicación
+# Copiar el resto del código
 COPY . .
 
-# Variable de entorno para puerto
+# Exponer el puerto (definido por la variable de entorno PORT)
 ENV PORT=5000
+EXPOSE ${PORT}
 
-# Puerto que escuchará la aplicación
-EXPOSE 5000
+# Script de inicio simplificado
+RUN echo '#!/bin/bash\ngunicorn --bind 0.0.0.0:${PORT} --timeout 120 main:app' > /app/start.sh && \
+    chmod +x /app/start.sh
 
-# Comando para iniciar la aplicación
-CMD gunicorn --bind 0.0.0.0:$PORT main:app
+# Ejecutar con script para asegurar las variables de entorno
+CMD ["/app/start.sh"]
